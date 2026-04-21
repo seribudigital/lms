@@ -13,7 +13,16 @@ export default function SiswaClient({ initialSiswa, kelasOptions }: { initialSis
   const [localKelasOptions, setLocalKelasOptions] = useState(kelasOptions);
 
   useEffect(() => {
-    setLocalKelasOptions(kelasOptions);
+    setLocalKelasOptions(prev => {
+      // Merge preventing cached old response from wiping out Optimistic UI
+      const merged = [...kelasOptions];
+      prev.forEach(p => {
+        if (!merged.find(m => m.id === p.id)) {
+          merged.push(p);
+        }
+      });
+      return merged.sort((a, b) => a.tingkat.localeCompare(b.tingkat) || a.nama.localeCompare(b.nama));
+    });
   }, [kelasOptions]);
 
   // Modal States

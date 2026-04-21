@@ -3,7 +3,6 @@
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
-import Papa from "papaparse";
 
 export async function createKelas(nama: string, tingkat: string) {
   try {
@@ -112,7 +111,6 @@ export async function updateSiswa(formData: FormData) {
 }
 
 export async function bulkImportSiswa(formData: FormData) {
-  // ... existing code ...
   try {
     const file = formData.get("file") as File;
     const kelasId = formData.get("kelasId") as string;
@@ -122,74 +120,70 @@ export async function bulkImportSiswa(formData: FormData) {
     }
 
     const fileContent = await file.text();
+    const rowsRaw = fileContent.split(/\r?\n/);
+    
+    // Validasi Header (nama,email)
+    if (rowsRaw.length < 2) {
+      return { success: false, error: "File CSV kosong atau tidak valid" };
+    }
+    
+    const header = rowsRaw[0].toLowerCase();
+    if (!header.includes("nama") || !header.includes("email")) {
+      return { success: false, error: "Format CSV salah. Pastikan header adalah 'nama' dan 'email'" };
+    }
 
-    return new Promise((resolve) => {
-      Papa.parse(fileContent, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          const rows = results.data as Array<{ nama: string; email: string }>;
-          
-          if (!rows || rows.length === 0) {
-            resolve({ success: false, error: "File CSV kosong atau tidak valid" });
-            return;
-          }
+    const hashedPassword = await bcrypt.hash("siswa123", 10);
+    let successCount = 0;
+    let errorCount = 0;
 
-          if (!('nama' in rows[0]) || !('email' in rows[0])) {
-            resolve({ success: false, error: "Format CSV salah. Pastikan header adalah 'nama' dan 'email'" });
-            return;
-          }
+    for (let i = 1; i < rowsRaw.length; i++) {
+        const line = rowsRaw[i].trim();
+        if (!line) continue;
+        
+        let nama = '';
+        let email = '';
 
-          try {
-            const hashedPassword = await bcrypt.hash("siswa123", 10);
-            let successCount = 0;
-            let errorCount = 0;
+        // Simple CSV parse safely
+        if (line.includes(',')) {
+            const parts = line.split(',');
+            nama = parts[0].trim();
+            email = parts[1].trim();
+        } else if (line.includes(';')) {
+            const parts = line.split(';');
+            nama = parts[0].trim();
+            email = parts[1].trim();
+        }
 
-            for (const row of rows) {
-              const { nama, email } = row;
-              
-              if (!nama || !email) {
-                errorCount++;
-                continue; // Skip invalid rows
-              }
+        if (!nama || !email) {
+            errorCount++;
+            continue;
+        }
 
-              try {
-                await prisma.user.create({
-                  data: {
-                    nama: nama.trim(),
-                    email: email.trim(),
+        try {
+            await prisma.user.create({
+                data: {
+                    nama: nama,
+                    email: email,
                     password: hashedPassword,
                     role: "SISWA",
                     kelasId: kelasId || null
-                  }
-                });
-                successCount++;
-              } catch (dbError: any) {
-                console.error("Failed to insert row:", row, dbError.message);
-                errorCount++;
-              }
-            }
-
-            revalidatePath("/admin/siswa");
-            resolve({ 
-              success: true, 
-              message: `Berhasil mengimpor ${successCount} siswa. ${errorCount > 0 ? `(${errorCount} gagal/duplikat)` : ''}` 
+                }
             });
-
-          } catch (error: any) {
-             console.error("Bulk insert process error:", error);
-             resolve({ success: false, error: error.message || "Gagal memproses baris ke database" });
-          }
-        },
-        error: (error: any) => {
-          console.error("PapaParse error:", error);
-          resolve({ success: false, error: "Gagal memparsing CSV" });
+            successCount++;
+        } catch (dbError: any) {
+            console.error("Bulk DB Insert Error for", email, ":", dbError.message);
+            errorCount++;
         }
-      });
-    });
+    }
+
+    revalidatePath("/admin/siswa");
+    return { 
+        success: true, 
+        message: `Berhasil mengimpor ${successCount} siswa. ${errorCount > 0 ? `(${errorCount} gagal/duplikat)` : ''}` 
+    };
 
   } catch (error: any) {
     console.error("Error bulk import:", error);
-    return { success: false, error: "Terjadi kesalahan saat mengunggah fle" };
+    return { success: false, error: "Terjadi kesalahan sistem saat memproses berkas" };
   }
 }
