@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, AlertCircle, Plus, X, List, Layers, Users, BookOpen } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertCircle, Plus, X, List, Layers, Users, BookOpen, Printer } from "lucide-react";
 import Link from "next/link";
 import { createSoal } from "./actions";
 import { useRouter } from "next/navigation";
@@ -65,8 +65,36 @@ export default function SoalClient({ tugas }: { tugas: any }) {
     }
   };
 
+  // Kalkulasi Rekap Semua Siswa
+  const semuaSiswaMap = new Map();
+  tugas.pertemuan?.mataPelajaran?.kelas?.forEach((k: any) => {
+    k.siswa?.forEach((s: any) => {
+      if (!semuaSiswaMap.has(s.id)) {
+        semuaSiswaMap.set(s.id, s);
+      }
+    });
+  });
+  
+  const semuaSiswa = Array.from(semuaSiswaMap.values())
+    .sort((a: any, b: any) => a.nama.localeCompare(b.nama));
+  
+  const pengerjaanBySiswa = new Map();
+  tugas.pengerjaan?.forEach((p: any) => {
+    pengerjaanBySiswa.set(p.siswaId, p);
+  });
+
+  const rekapSiswa = semuaSiswa.map((siswa: any) => {
+    const p = pengerjaanBySiswa.get(siswa.id);
+    return {
+      id: siswa.id,
+      nama: siswa.nama,
+      pengerjaan: p,
+      status: p ? (p.waktuSelesai ? 'Selesai' : 'Mengerjakan') : 'Belum Mengerjakan'
+    };
+  });
+
   return (
-    <div className="font-sans text-white p-4 md:p-8 max-w-6xl mx-auto">
+    <div className="font-sans text-white p-4 md:p-8 max-w-6xl mx-auto print:p-0 print:text-black print:bg-white print:max-w-none">
       {/* Toast Notification */}
       {toast && (
         <div className={`fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl border backdrop-blur-md shadow-2xl animate-in slide-in-from-top-2 ${toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
@@ -77,12 +105,12 @@ export default function SoalClient({ tugas }: { tugas: any }) {
 
       <Link 
         href="/guru/tugas" 
-        className="inline-flex items-center gap-2 text-zinc-400 hover:text-emerald-400 font-medium mb-6 transition-colors -ml-2 p-2 rounded-lg hover:bg-white/5 w-fit"
+        className="inline-flex items-center gap-2 text-zinc-400 hover:text-emerald-400 font-medium mb-6 transition-colors -ml-2 p-2 rounded-lg hover:bg-white/5 w-fit print:hidden"
       >
         <ArrowLeft className="w-4 h-4" /> Kembali ke Daftar Tugas
       </Link>
 
-      <header className="mb-8 border-b border-white/10 pb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-6 relative">
+      <header className="mb-8 border-b border-white/10 pb-8 flex flex-col md:flex-row md:justify-between md:items-end gap-6 relative print:hidden">
         <div className="absolute top-0 right-1/4 w-72 h-72 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none transform -translate-y-1/2"></div>
         
         <div className="relative z-10">
@@ -116,7 +144,7 @@ export default function SoalClient({ tugas }: { tugas: any }) {
       </header>
 
       {/* Tabs */}
-      <div className="flex gap-4 border-b border-white/10 mb-8 overflow-x-auto no-scrollbar">
+      <div className="flex gap-4 border-b border-white/10 mb-8 overflow-x-auto no-scrollbar print:hidden">
         <button 
           onClick={() => setActiveTab("SOAL")}
           className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === "SOAL" ? "border-emerald-500 text-emerald-400" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
@@ -127,7 +155,7 @@ export default function SoalClient({ tugas }: { tugas: any }) {
           onClick={() => setActiveTab("HASIL")}
           className={`flex items-center gap-2 px-4 py-3 font-medium transition-colors border-b-2 whitespace-nowrap ${activeTab === "HASIL" ? "border-emerald-500 text-emerald-400" : "border-transparent text-zinc-500 hover:text-zinc-300"}`}
         >
-          <Users className="w-4 h-4" /> Hasil Pengerjaan ({tugas.pengerjaan.length} Siswa)
+          <Users className="w-4 h-4" /> Hasil & Rekapitulasi ({tugas.pengerjaan.length}/{semuaSiswa.length} Siswa)
         </button>
       </div>
 
@@ -173,42 +201,78 @@ export default function SoalClient({ tugas }: { tugas: any }) {
 
       {/* Tab Content: HASIL */}
       {activeTab === "HASIL" && (
-        <div className="overflow-hidden border border-white/10 rounded-3xl bg-zinc-900/50 backdrop-blur-xl">
-          {tugas.pengerjaan.length === 0 ? (
-            <div className="py-20 text-center">
-              <BookOpen className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
-              <p className="text-zinc-400">Belum ada siswa yang mengerjakan ujian ini.</p>
+        <div className="space-y-4">
+          <div className="flex flex-wrap justify-between items-center print:hidden mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-white mb-1">Rekapitulasi Nilai</h2>
+              <p className="text-sm text-zinc-400">Total {semuaSiswa.length} siswa di kelas yang mengambil tugas ini.</p>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-white/5 border-b border-white/10 text-xs uppercase tracking-wider text-zinc-400 font-semibold">
-                    <th className="p-4 pl-6">Nama Siswa</th>
-                    <th className="p-4">Waktu Penyelesaian</th>
-                    <th className="p-4 text-right pr-6">Nilai (100)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {tugas.pengerjaan.map((p: any) => (
-                    <tr key={p.id} className="hover:bg-white/5 transition-colors group">
-                      <td className="p-4 pl-6 text-zinc-200 font-medium">{p.siswa.name}</td>
-                      <td className="p-4 text-zinc-400 text-sm">{p.waktuSelesai ? new Date(p.waktuSelesai).toLocaleString('id-ID') : 'Belum selesai'}</td>
-                      <td className="p-4 text-right pr-6">
-                        {p.nilai !== null ? (
-                          <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-bold border ${p.nilai >= 70 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                            {p.nilai}
-                          </span>
-                        ) : (
-                          <span className="text-zinc-500 italic text-sm">Proses</span>
-                        )}
-                      </td>
+            <button 
+              onClick={() => window.print()} 
+              className="inline-flex items-center gap-2 px-4 py-2 mt-2 sm:mt-0 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors border border-white/10 focus:outline-none focus:ring-2 focus:ring-zinc-400"
+            >
+              <Printer className="w-4 h-4" /> Cetak / Ekspor PDF
+            </button>
+          </div>
+
+          {/* Title for Print Media Only */}
+          <div className="hidden print:block mb-6 pt-4 text-center border-b pb-4">
+            <h1 className="text-2xl font-bold uppercase mb-2">Rekapitulasi Nilai Siswa</h1>
+            <p className="text-sm font-semibold">{tugas.pertemuan?.mataPelajaran?.nama} - Pertemuan {tugas.pertemuan?.urutanPertemuan}</p>
+            <p className="text-sm">{tugas.judul}</p>
+          </div>
+
+          <div className="overflow-hidden border border-white/10 rounded-3xl bg-zinc-900/50 backdrop-blur-xl print:border-zinc-300 print:bg-transparent print:rounded-none">
+            {rekapSiswa.length === 0 ? (
+              <div className="py-20 text-center print:hidden">
+                <BookOpen className="w-12 h-12 text-zinc-600 mx-auto mb-4" />
+                <p className="text-zinc-400">Belum ada siswa di kelas mata pelajaran ini.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto print:overflow-visible">
+                <table className="w-full text-left border-collapse print:border print:border-zinc-300">
+                  <thead>
+                    <tr className="bg-white/5 border-b border-white/10 print:border-zinc-300 print:bg-zinc-100 text-xs uppercase tracking-wider text-zinc-400 print:text-zinc-800 font-semibold">
+                      <th className="p-4 pl-6 print:py-2 print:border print:border-zinc-300">No</th>
+                      <th className="p-4 print:py-2 print:border print:border-zinc-300">Nama Siswa</th>
+                      <th className="p-4 print:py-2 print:border print:border-zinc-300">Status</th>
+                      <th className="p-4 print:py-2 print:border print:border-zinc-300">Waktu Selesai</th>
+                      <th className="p-4 text-center pr-6 print:py-2 print:border print:border-zinc-300 print:pr-4">Nilai (100)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody className="divide-y divide-white/5 print:divide-zinc-300">
+                    {rekapSiswa.map((siswa, idx) => (
+                      <tr key={siswa.id} className={`hover:bg-white/5 transition-colors group print:text-black print:hover:bg-transparent ${!siswa.pengerjaan ? 'bg-black/20 print:bg-transparent' : ''}`}>
+                        <td className="p-4 pl-6 text-zinc-500 font-medium print:py-2 print:border print:border-zinc-300 w-12">{idx + 1}</td>
+                        <td className="p-4 text-zinc-200 font-medium print:text-black print:py-2 print:border print:border-zinc-300">{siswa.nama}</td>
+                        <td className="p-4 print:py-2 print:border print:border-zinc-300">
+                           {siswa.status === 'Selesai' ? (
+                             <span className="text-emerald-400 font-medium text-sm print:text-black">Sudah Mengerjakan</span>
+                           ) : siswa.status === 'Mengerjakan' ? (
+                             <span className="text-blue-400 font-medium text-sm print:text-black">Sedang Mengerjakan</span>
+                           ) : (
+                             <span className="text-red-400 font-medium text-sm print:text-black">Belum Mengerjakan</span>
+                           )}
+                        </td>
+                        <td className="p-4 text-zinc-400 text-sm print:text-black print:py-2 print:border print:border-zinc-300">
+                          {siswa.pengerjaan?.waktuSelesai ? new Date(siswa.pengerjaan.waktuSelesai).toLocaleString('id-ID') : '-'}
+                        </td>
+                        <td className="p-4 text-center pr-6 print:py-2 print:border print:border-zinc-300 print:pr-4">
+                          {siswa.pengerjaan && siswa.pengerjaan.nilai !== null ? (
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-sm font-bold border print:border-none print:px-0 print:py-0 ${siswa.pengerjaan.nilai >= 70 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 print:text-black' : 'bg-red-500/10 text-red-400 border-red-500/20 print:text-black'}`}>
+                              {siswa.pengerjaan.nilai}
+                            </span>
+                          ) : (
+                            <span className="text-zinc-600 font-medium print:text-black">-</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

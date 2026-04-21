@@ -18,7 +18,11 @@ export default async function DetilTugasPage(props: { params: Promise<{ id: stri
       pertemuan: {
         include: {
           mataPelajaran: {
-            include: { kelas: true }
+            include: { 
+              kelas: {
+                include: { siswa: true }
+              } 
+            }
           }
         }
       },

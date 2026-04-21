@@ -16,9 +16,9 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="flex h-screen bg-zinc-950 font-sans text-white overflow-hidden selection:bg-emerald-500/30">
+    <div className="flex h-screen bg-zinc-950 font-sans text-white overflow-hidden print:overflow-visible print:h-auto selection:bg-emerald-500/30">
       {/* Sidebar (Desktop) */}
-      <aside className="w-64 border-r border-white/10 bg-zinc-900/50 backdrop-blur-xl flex-col justify-between hidden md:flex">
+      <aside className="w-64 border-r border-white/10 bg-zinc-900/50 backdrop-blur-xl flex-col justify-between hidden md:flex print:hidden">
         <div>
           <div className="p-6">
             <h2 className="text-2xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">
@@ -54,9 +54,9 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto relative">
+      <main className="flex-1 overflow-y-auto print:overflow-visible relative">
         {/* Mobile Header */}
-        <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-zinc-900/80 backdrop-blur-md sticky top-0 z-20">
+        <div className="md:hidden flex items-center justify-between p-4 border-b border-white/10 bg-zinc-900/80 backdrop-blur-md sticky top-0 z-20 print:hidden">
           <h2 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">
             SeribuDigital
           </h2>
