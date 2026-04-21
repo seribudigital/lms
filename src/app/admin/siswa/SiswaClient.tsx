@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Upload, Download, Edit, Search, User, Trash2, X, CheckCircle2, AlertCircle } from "lucide-react";
 import { createSiswaManual, updateSiswa, bulkImportSiswa, createKelas } from "./actions";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,11 @@ export default function SiswaClient({ initialSiswa, kelasOptions }: { initialSis
   const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [localKelasOptions, setLocalKelasOptions] = useState(kelasOptions);
+
+  useEffect(() => {
+    setLocalKelasOptions(kelasOptions);
+  }, [kelasOptions]);
 
   // Modal States
   const [isModalManualOpen, setIsModalManualOpen] = useState(false);
@@ -125,12 +130,14 @@ export default function SiswaClient({ initialSiswa, kelasOptions }: { initialSis
 
     if (res.success) {
       showToast('success', 'Kelas baru berhasil ditambahkan');
-      router.refresh();
-      // Optional: automatically set the new class id 
-      if (res.data?.id) {
-         setKelasId(res.data.id);
-         setBulkKelasId(res.data.id);
+      if (res.data) {
+         setLocalKelasOptions(prev => [...prev, res.data]);
+         setTimeout(() => {
+            setKelasId(res.data.id);
+            setBulkKelasId(res.data.id);
+         }, 50);
       }
+      router.refresh();
     } else {
       showToast('error', res.error || 'Terjadi kesalahan saat menambah kelas');
     }
@@ -307,7 +314,7 @@ export default function SiswaClient({ initialSiswa, kelasOptions }: { initialSis
                       className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 appearance-none"
                     >
                       <option value="">-- Pilih Kelas (Opsional) --</option>
-                      {kelasOptions.map((k) => (
+                      {localKelasOptions.map((k) => (
                         <option key={k.id} value={k.id}>{k.tingkat} {k.nama}</option>
                       ))}
                     </select>
@@ -360,7 +367,7 @@ export default function SiswaClient({ initialSiswa, kelasOptions }: { initialSis
                       className="w-full rounded-xl border border-white/10 bg-zinc-900/80 px-4 py-3 text-white focus:outline-none focus:ring-1 focus:ring-blue-500/50 appearance-none shadow-inner"
                     >
                       <option value="">-- Wajib Pilih Kelas --</option>
-                      {kelasOptions.map((k) => (
+                      {localKelasOptions.map((k) => (
                         <option key={k.id} value={k.id}>{k.tingkat} {k.nama}</option>
                       ))}
                     </select>
