@@ -17,7 +17,10 @@ export async function createKelas(nama: string, tingkat: string) {
     });
 
     revalidatePath("/admin/siswa");
-    return { success: true, data: kelas };
+    return { 
+      success: true, 
+      data: JSON.parse(JSON.stringify(kelas)) 
+    };
   } catch (error: any) {
     console.error("Error creating kelas:", error);
     if (error.code === 'P2002') {
@@ -49,6 +52,13 @@ export async function createSiswaManual(formData: FormData) {
         role: "SISWA",
         kelasId: kelasId || null,
       },
+      select: {
+        id: true,
+        nama: true,
+        email: true,
+        role: true,
+        kelasId: true
+      }
     });
 
     revalidatePath("/admin/siswa");
@@ -81,6 +91,13 @@ export async function updateSiswa(formData: FormData) {
         email,
         kelasId: kelasId || null,
       },
+      select: {
+        id: true,
+        nama: true,
+        email: true,
+        role: true,
+        kelasId: true
+      }
     });
 
     revalidatePath("/admin/siswa");
