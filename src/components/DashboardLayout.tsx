@@ -1,8 +1,9 @@
 "use client";
 
-import { LogOut, LayoutDashboard } from "lucide-react";
+import { LogOut, LayoutDashboard, Users } from "lucide-react";
 import { signOut } from "next-auth/react";
 import React from 'react';
+import Link from 'next/link';
 
 export default function DashboardLayout({ 
   children, 
@@ -30,11 +31,22 @@ export default function DashboardLayout({
           </div>
           
           <nav className="px-4 mt-6 space-y-2">
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-emerald-500/10 text-emerald-400 font-medium cursor-pointer border border-emerald-500/20 shadow-[0_0_15px_-5px_rgba(16,185,129,0.3)]">
+            <Link 
+              href={`/${user.role?.toLowerCase()}`}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-emerald-400 hover:bg-emerald-500/10 font-medium transition-colors"
+            >
               <LayoutDashboard className="w-5 h-5" />
               Dashboard
-            </div>
-            {/* Navigasi tambahan sesuai role bisa didaftarkan di sini nantinya */}
+            </Link>
+            {user.role === 'ADMIN' && (
+              <Link 
+                href="/admin/siswa"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 font-medium transition-colors"
+              >
+                <Users className="w-5 h-5" />
+                Manajemen Siswa
+              </Link>
+            )}
           </nav>
         </div>
 
