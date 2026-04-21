@@ -1,0 +1,284 @@
+// ============================================================
+// LMS MTs/MA - Database Schema
+// Stack: Next.js 16, Prisma 7, Supabase PostgreSQL
+// ============================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  ADMIN
+  GURU
+  SISWA
+}
+
+enum StatusPengerjaan {
+  DIKERJAKAN
+  SELESAI
+  DINILAI
+}
+
+// ============================================================
+// USER - Semua pengguna (Admin, Guru, Siswa)
+// ============================================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  nama      String
+  role      Role     @default(SISWA)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi Guru
+  kelasAsWaliKelas Kelas[]          @relation("WaliKelas")
+  mataPelajaran    MataPelajaran[]  @relation("GuruMapel")
+
+  // Relasi Siswa
+  kelas        Kelas?       @relation("SiswaKelas", fields: [kelasId], references: [id])
+  kelasId      String?
+  pengerjaan   Pengerjaan[] @relation("PengerjaanSiswa")
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+// ============================================================
+// KELAS - Kelas (VII-A, VIII-B, IX-C, X-IPA, dll)
+// ============================================================
+
+model Kelas {
+  id        String   @id @default(uuid())
+  nama      String   @unique // e.g. "VII-A", "X-IPA-1"
+  tingkat   String   // e.g. "VII", "VIII", "IX", "X", "XI", "XII"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Wali Kelas
+  waliKelas   User?   @relation("WaliKelas", fields: [waliKelasId], references: [id])
+  waliKelasId String?
+
+  // Siswa di kelas ini
+  siswa         User[]          @relation("SiswaKelas")
+  mataPelajaran MataPelajaran[] @relation("KelasMapel")
+
+  @@index([tingkat])
+  @@map("kelas")
+}
+
+// ============================================================
+// MATA PELAJARAN - Mapel yang diajarkan
+// ============================================================
+
+model MataPelajaran {
+  id        String   @id @default(uuid())
+  nama      String   // e.g. "Matematika", "Fiqih", "Bahasa Arab"
+  kode      String   @unique // e.g. "MTK", "FQH", "BAR"
+  deskripsi String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Guru pengajar
+  guru   User   @relation("GuruMapel", fields: [guruId], references: [id])
+  guruId String
+
+  // Kelas yang mengambil mapel ini
+  kelas     Kelas[]     @relation("KelasMapel")
+  pertemuan Pertemuan[]
+
+  @@index([guruId])
+  @@map("mata_pelajaran")
+}
+
+// ============================================================
+// PERTEMUAN - Pertemuan/sesi dalam mapel
+// ============================================================
+
+model Pertemuan {
+  id              String   @id @default(uuid())
+  judul           String   // e.g. "Pertemuan 1: Bilangan Bulat"
+  deskripsi       String?
+  urutanPertemuan Int      // Urutan ke-berapa
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relasi ke Mata Pelajaran
+  mataPelajaran   MataPelajaran @relation(fields: [mataPelajaranId], references: [id], onDelete: Cascade)
+  mataPelajaranId String
+
+  // Konten pertemuan
+  materi Materi[]
+  tugas  Tugas[]
+
+  @@unique([mataPelajaranId, urutanPertemuan])
+  @@index([mataPelajaranId])
+  @@map("pertemuan")
+}
+
+// ============================================================
+// MATERI - Konten pembelajaran (teks, video, file)
+// ============================================================
+
+model Materi {
+  id        String   @id @default(uuid())
+  judul     String
+  konten    String   // Rich text / HTML dari Tiptap editor
+  fileUrl   String?  // URL file lampiran (PDF, video, dll)
+  urutan    Int      // Urutan materi dalam pertemuan
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi ke Pertemuan
+  pertemuan   Pertemuan @relation(fields: [pertemuanId], references: [id], onDelete: Cascade)
+  pertemuanId String
+
+  @@unique([pertemuanId, urutan])
+  @@index([pertemuanId])
+  @@map("materi")
+}
+
+// ============================================================
+// TUGAS - Tugas/Ujian/Quiz
+// ============================================================
+
+model Tugas {
+  id          String   @id @default(uuid())
+  judul       String
+  deskripsi   String?
+  tenggatWaktu DateTime? // Deadline pengumpulan
+  durasi      Int?      // Durasi pengerjaan dalam menit (untuk ujian)
+  nilaiMaks   Float    @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relasi ke Pertemuan
+  pertemuan   Pertemuan @relation(fields: [pertemuanId], references: [id], onDelete: Cascade)
+  pertemuanId String
+
+  // Soal-soal dalam tugas
+  soal       Soal[]
+  pengerjaan Pengerjaan[]
+
+  @@index([pertemuanId])
+  @@map("tugas")
+}
+
+// ============================================================
+// SOAL - Pertanyaan dalam tugas (pilihan ganda & essay)
+// ============================================================
+
+model Soal {
+  id        String   @id @default(uuid())
+  pertanyaan String  // Rich text, bisa mengandung KaTeX
+  tipe      String   // "PILIHAN_GANDA" | "ESSAY"
+  bobot     Float    @default(1) // Bobot nilai soal
+  urutan    Int      // Urutan soal dalam tugas
+  pembahasan String? // Pembahasan jawaban
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi ke Tugas
+  tugas   Tugas  @relation(fields: [tugasId], references: [id], onDelete: Cascade)
+  tugasId String
+
+  // Pilihan jawaban (untuk pilihan ganda)
+  pilihanJawaban PilihanJawaban[]
+  jawabanSiswa   JawabanSiswa[]
+
+  @@unique([tugasId, urutan])
+  @@index([tugasId])
+  @@map("soal")
+}
+
+// ============================================================
+// PILIHAN JAWABAN - Opsi jawaban untuk soal pilihan ganda
+// ============================================================
+
+model PilihanJawaban {
+  id        String   @id @default(uuid())
+  teks      String   // Teks pilihan jawaban
+  label     String   // "A", "B", "C", "D", "E"
+  isBenar   Boolean  @default(false) // Apakah ini jawaban benar
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi ke Soal
+  soal   Soal   @relation(fields: [soalId], references: [id], onDelete: Cascade)
+  soalId String
+
+  @@unique([soalId, label])
+  @@index([soalId])
+  @@map("pilihan_jawaban")
+}
+
+// ============================================================
+// PENGERJAAN - Record pengerjaan tugas oleh siswa
+// Constraint: Satu siswa hanya bisa submit satu kali per tugas
+// ============================================================
+
+model Pengerjaan {
+  id          String           @id @default(uuid())
+  status      StatusPengerjaan @default(DIKERJAKAN)
+  nilai       Float?           // Nilai akhir setelah dinilai
+  waktuMulai  DateTime         @default(now())
+  waktuSelesai DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relasi ke Tugas
+  tugas   Tugas  @relation(fields: [tugasId], references: [id], onDelete: Cascade)
+  tugasId String
+
+  // Relasi ke Siswa
+  siswa   User   @relation("PengerjaanSiswa", fields: [siswaId], references: [id], onDelete: Cascade)
+  siswaId String
+
+  // Jawaban-jawaban siswa
+  jawabanSiswa JawabanSiswa[]
+
+  // TUGAS 3: Mencegah submit ganda - satu siswa hanya bisa mengerjakan satu tugas sekali
+  @@unique([tugasId, siswaId])
+  @@index([tugasId])
+  @@index([siswaId])
+  @@map("pengerjaan")
+}
+
+// ============================================================
+// JAWABAN SISWA - Jawaban individual per soal
+// ============================================================
+
+model JawabanSiswa {
+  id        String   @id @default(uuid())
+  jawaban   String   // Jawaban siswa (label pilihan / teks essay)
+  isBenar   Boolean? // Hasil koreksi (null = belum dikoreksi)
+  nilai     Float?   // Nilai per soal
+  feedback  String?  // Feedback dari guru (untuk essay)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relasi ke Pengerjaan
+  pengerjaan   Pengerjaan @relation(fields: [pengerjaanId], references: [id], onDelete: Cascade)
+  pengerjaanId String
+
+  // Relasi ke Soal
+  soal   Soal   @relation(fields: [soalId], references: [id], onDelete: Cascade)
+  soalId String
+
+  @@unique([pengerjaanId, soalId]) // Satu jawaban per soal per pengerjaan
+  @@index([pengerjaanId])
+  @@index([soalId])
+  @@map("jawaban_siswa")
+}
