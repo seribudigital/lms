@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Upload, Download, Edit, Search, User, Trash2, X, CheckCircle2, AlertCircle } from "lucide-react";
-import { createSiswaManual, updateSiswa, bulkImportSiswa } from "./actions";
+import { createSiswaManual, updateSiswa, bulkImportSiswa, createKelas } from "./actions";
 import { useRouter } from "next/navigation";
 
 export default function SiswaClient({ initialSiswa, kelasOptions }: { initialSiswa: any[], kelasOptions: any[] }) {
@@ -110,6 +110,29 @@ export default function SiswaClient({ initialSiswa, kelasOptions }: { initialSis
       router.refresh();
     } else {
       showToast('error', res.error || 'Gagal melakukan bulk import');
+    }
+  };
+
+  const handleAddKelasBaru = async () => {
+    const nama = window.prompt("Masukkan rincian nama kelas (Contoh: VIII-A):");
+    if (!nama) return;
+    const tingkat = window.prompt("Masukkan tingkat angka romawi (Contoh: VIII):");
+    if (!tingkat) return;
+
+    setLoading(true);
+    const res = await createKelas(nama, tingkat);
+    setLoading(false);
+
+    if (res.success) {
+      showToast('success', 'Kelas baru berhasil ditambahkan');
+      router.refresh();
+      // Optional: automatically set the new class id 
+      if (res.data?.id) {
+         setKelasId(res.data.id);
+         setBulkKelasId(res.data.id);
+      }
+    } else {
+      showToast('error', res.error || 'Terjadi kesalahan saat menambah kelas');
     }
   };
 
@@ -272,7 +295,12 @@ export default function SiswaClient({ initialSiswa, kelasOptions }: { initialSis
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-zinc-300">Asal Kelas</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-zinc-300">Asal Kelas</label>
+                      <button type="button" onClick={handleAddKelasBaru} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                        + Tambah Kelas Baru
+                      </button>
+                    </div>
                     <select
                       value={kelasId}
                       onChange={(e) => setKelasId(e.target.value)}
@@ -319,7 +347,12 @@ export default function SiswaClient({ initialSiswa, kelasOptions }: { initialSis
                   
                   {/* Select Kelas Untuk Import */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-zinc-300">Tugaskan Siswa ke Kelas</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-zinc-300">Tugaskan Siswa ke Kelas</label>
+                      <button type="button" onClick={handleAddKelasBaru} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                        + Tambah Kelas Baru
+                      </button>
+                    </div>
                     <select
                       value={bulkKelasId}
                       onChange={(e) => setBulkKelasId(e.target.value)}

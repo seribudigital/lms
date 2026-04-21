@@ -5,7 +5,30 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import Papa from "papaparse";
 
+export async function createKelas(nama: string, tingkat: string) {
+  try {
+    if (!nama || !tingkat) return { success: false, error: "Nama dan Tingkat wajib diisi" };
+    
+    const kelas = await prisma.kelas.create({
+      data: {
+        nama: nama.toUpperCase(),
+        tingkat: tingkat.toUpperCase(),
+      }
+    });
+
+    revalidatePath("/admin/siswa");
+    return { success: true, data: kelas };
+  } catch (error: any) {
+    console.error("Error creating kelas:", error);
+    if (error.code === 'P2002') {
+      return { success: false, error: "Nama kelas sudah ada" };
+    }
+    return { success: false, error: "Terjadi kesalahan internal" };
+  }
+}
+
 export async function createSiswaManual(formData: FormData) {
+  // ... existing code ...
   try {
     const nama = formData.get("nama") as string;
     const email = formData.get("email") as string;
@@ -40,6 +63,7 @@ export async function createSiswaManual(formData: FormData) {
 }
 
 export async function updateSiswa(formData: FormData) {
+  // ... existing code ...
   try {
     const id = formData.get("id") as string;
     const nama = formData.get("nama") as string;
@@ -71,6 +95,7 @@ export async function updateSiswa(formData: FormData) {
 }
 
 export async function bulkImportSiswa(formData: FormData) {
+  // ... existing code ...
   try {
     const file = formData.get("file") as File;
     const kelasId = formData.get("kelasId") as string;
@@ -123,7 +148,6 @@ export async function bulkImportSiswa(formData: FormData) {
                 });
                 successCount++;
               } catch (dbError: any) {
-                // If it's a unique constraint error (P2002), we just record it as an error
                 console.error("Failed to insert row:", row, dbError.message);
                 errorCount++;
               }
